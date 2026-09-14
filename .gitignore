@@ -1,0 +1,11 @@
+dist/
+build/
+bundle/
+models/
+*.pyc
+__pycache__/
+*.spec
+*.log
+*.exe
+*.zip
+FaceFinder-portable.zip
