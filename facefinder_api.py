@@ -242,6 +242,8 @@ button:disabled{opacity:.4;cursor:default}
 .ph .rm{position:absolute;top:4px;right:4px;background:rgba(0,0,0,.7);border:none;color:var(--danger);border-radius:6px;padding:2px 8px;font-weight:700}
 .ph.removed img{opacity:.25}
 .ph .back{position:absolute;inset:auto 0 0 0;background:rgba(0,0,0,.7);color:#fff;font-size:11px;text-align:center;padding:3px}
+h2.section{font-size:14px;margin:22px 0 10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.req-head img.big{width:96px;height:96px}
 .muted{color:var(--muted);font-size:12px}
 .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
 .empty{color:var(--muted);text-align:center;padding:40px 0}
@@ -260,8 +262,11 @@ async function refresh() {
   const {j} = await api('/requests');
   const app = document.getElementById('app');
   if (!j.length) { app.innerHTML = '<div class="empty">Aucune demande. Envoie une photo au bot Telegram.</div>'; return; }
-  app.innerHTML = j.map(r => {
-    const canAct = ['pending'].includes(r.status);
+  const enCours = j.filter(r => ['pending','syncing','scanning'].includes(r.status));
+  const histo   = j.filter(r => !['pending','syncing','scanning'].includes(r.status));
+
+  const card = (r, big) => {
+    const canAct = r.status === 'pending';
     const canSend = r.status === 'done' && r.result && r.result.matches && r.result.matches.length;
     const removed = r.removed || [];
     let body = '';
@@ -279,10 +284,11 @@ async function refresh() {
     if (r.status === 'error') body = `<p class="muted">Erreur (${(r.error||{}).step || '?'}): ${((r.error||{}).error || '').slice(0,200)}</p>`;
     return `<div class="card">
       <div class="req-head">
-        <img src="/request_photo?id=${r.id}">
+        <img src="/request_photo?id=${r.id}" class="${big ? 'big' : ''}">
         <div style="flex:1">
           <div class="row"><b>Demande ${r.id.slice(0,8)}</b><span class="badge ${r.status}">${fmtStatus(r.status)}</span>
-          ${r.result && r.result.count != null ? `<span class="muted">${r.result.count} correspondance(s)</span>` : ''}</div>
+          ${r.result && r.result.count != null ? `<span class="muted">${r.result.count} correspondance(s)</span>` : ''}
+          ${r.source ? `<span class="muted">· ${r.source}</span>` : ''}</div>
           <div class="muted">${new Date(r.created_at).toLocaleString('fr-FR')}</div>
         </div>
         <div class="row">
@@ -292,7 +298,13 @@ async function refresh() {
           ${canSend ? `<button class="primary" onclick="validateReq('${r.id}')">✔ Valider l'envoi (${r.result.matches.length - removed.length})</button>` : ''}
         </div>
       </div>${body}</div>`;
-  }).join('');
+  };
+
+  app.innerHTML =
+    `<h2 class="section">⏳ Demandes en cours (${enCours.length})</h2>` +
+    (enCours.length ? enCours.map(r => card(r, true)).join('') : '<p class="muted" style="margin:4px 0 18px">Aucune demande en attente.</p>') +
+    `<h2 class="section">📁 Historique (${histo.length})</h2>` +
+    (histo.length ? histo.map(r => card(r, false)).join('') : '<p class="muted">Rien pour le moment.</p>');
 }
 
 async function scanReq(id) { await api(`/requests/${id}/scan`, {method:'POST'}); toast('Analyse lancée'); refresh(); }
