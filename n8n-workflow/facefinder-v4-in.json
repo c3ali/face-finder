@@ -43,13 +43,13 @@
     },
     {
       "parameters": {
-        "operation": "toJson",
-        "sourceProperty": "data",
-        "options": {"encoding": "base64", "fileName": "photo.jpg"}
+        "operation": "binaryToPropery",
+        "destinationKey": "image_b64",
+        "options": {}
       },
       "name": "Photo en base64",
-      "type": "n8n-nodes-base.convertToFile",
-      "typeVersion": 1.1,
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
       "position": [660, 300]
     },
     {
@@ -58,7 +58,7 @@
         "url": "http://host.docker.internal:8787/requests",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={ \"image_b64\": {{ JSON.stringify($json.data) }}, \"chat_id\": 904941272, \"source\": \"telegram\" }",
+        "jsonBody": "={ \"image_b64\": {{ JSON.stringify($json.image_b64) }}, \"chat_id\": 904941272, \"source\": \"telegram\" }",
         "options": {"timeout": 60000}
       },
       "name": "Mettre en file (API)",
