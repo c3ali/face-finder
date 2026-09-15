@@ -57,13 +57,13 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://host.docker.internal:8787/scan",
+        "url": "http://host.docker.internal:8787/scan-sync",
         "sendBody": true,
         "specifyBody": "json",
-        "jsonBody": "={ \"ref\": \"C:\\\\Users\\\\DELL\\\\face-finder-data\\\\ref.jpg\", \"dir\": \"C:\\\\Users\\\\DELL\\\\face-finder-data\\\\scandrive\", \"threshold\": 0.45 }",
-        "options": {"timeout": 600000}
+        "jsonBody": "={ \"ref\": \"C:\\\\Users\\\\DELL\\\\face-finder-data\\\\ref.jpg\", \"threshold\": 0.45 }",
+        "options": {"timeout": 1800000}
       },
-      "name": "Scanner via FaceFinder API",
+      "name": "Sync Drive + Scanner",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [880, 300]
@@ -166,9 +166,12 @@
       "main": [[{"node": "Sauver photo référence", "type": "main", "index": 0}]]
     },
     "Sauver photo référence": {
-      "main": [[{"node": "Scanner via FaceFinder API", "type": "main", "index": 0}]]
+      "main": [[{"node": "Sync Drive + Scanner", "type": "main", "index": 0}]]
     },
     "Scanner via FaceFinder API": {
+      "main": [[{"node": "Demander approbation", "type": "main", "index": 0}]]
+    },
+    "Sync Drive + Scanner": {
       "main": [[{"node": "Demander approbation", "type": "main", "index": 0}]]
     },
     "Demander approbation": {

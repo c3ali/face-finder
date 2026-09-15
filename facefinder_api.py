@@ -43,6 +43,24 @@ def get_engine():
     return _engine
 
 
+def sync_gdrive():
+    """Sync le dossier Google Drive vers le dossier local via rclone (exeuste sur l'hote)."""
+    import subprocess
+
+    remote = os.environ.get("FACEFINDER_GDRIVE_REMOTE", "gdrive:Photos test")
+    local = os.environ.get("FACEFINDER_SCANDIR", r"C:\Users\DELL\face-finder-data\scandrive")
+    rclone = os.environ.get("FACEFINDER_RCLONE", r"C:\Users\DELL\bin\rclone.exe")
+    t0 = time.time()
+    r = subprocess.run(
+        [rclone, "sync", remote, local, "--fast-list"],
+        capture_output=True, text=True, timeout=1800,
+    )
+    if r.returncode != 0:
+        return {"error": "rclone failed", "stderr": r.stderr[-500:], "returncode": r.returncode}
+    n_files = sum(len(files) for _root, _dirs, files in os.walk(local))
+    return {"synced": True, "remote": remote, "local": local, "files": n_files, "elapsed_s": round(time.time() - t0, 1)}
+
+
 def embed_image(path):
     """Retourne l'embedding 512d du plus grand visage de l'image, ou None."""
     import cv2
@@ -102,22 +120,38 @@ class Handler(BaseHTTPRequestHandler):
             self._send(404, {"error": "not found"})
 
     def do_POST(self):
-        if self.path != "/scan":
-            self._send(404, {"error": "not found"})
-            return
         try:
             length = int(self.headers.get("Content-Length", 0))
-            req = json.loads(self.rfile.read(length) or b"{}")
-            ref = req.get("ref", "")
-            directory = req.get("dir", "")
-            threshold = float(req.get("threshold", 0.45))
-            if not os.path.isfile(ref):
-                self._send(400, {"error": "ref not found", "ref": ref})
+            req = json.loads(self.rfile.read(length) or b"{}") if length else {}
+            if self.path == "/sync":
+                self._send(200, sync_gdrive())
                 return
-            if not os.path.isdir(directory):
-                self._send(400, {"error": "dir not found", "dir": directory})
+            if self.path == "/scan-sync":
+                sync_info = sync_gdrive()
+                if sync_info.get("error"):
+                    self._send(500, {"step": "sync", **sync_info})
+                    return
+                ref = req.get("ref", r"C:\Users\DELL\face-finder-data\ref.jpg")
+                directory = req.get("dir", os.environ.get("FACEFINDER_SCANDIR", r"C:\Users\DELL\face-finder-data\scandrive"))
+                threshold = float(req.get("threshold", 0.45))
+                if not os.path.isfile(ref):
+                    self._send(400, {"error": "ref not found", "ref": ref})
+                    return
+                self._send(200, {"sync": sync_info, **scan(ref, directory, threshold)})
                 return
-            self._send(200, scan(ref, directory, threshold))
+            if self.path == "/scan":
+                ref = req.get("ref", "")
+                directory = req.get("dir", "")
+                threshold = float(req.get("threshold", 0.45))
+                if not os.path.isfile(ref):
+                    self._send(400, {"error": "ref not found", "ref": ref})
+                    return
+                if not os.path.isdir(directory):
+                    self._send(400, {"error": "dir not found", "dir": directory})
+                    return
+                self._send(200, scan(ref, directory, threshold))
+                return
+            self._send(404, {"error": "not found"})
         except Exception as exc:
             self._send(500, {"error": str(exc)})
 
