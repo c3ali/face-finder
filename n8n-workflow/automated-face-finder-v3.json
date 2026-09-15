@@ -1,0 +1,191 @@
+{
+  "id": "faceFinderAutomatedV3",
+  "name": "Automated Face Finder v3 — Telegram + FaceFinder API locale",
+  "nodes": [
+    {
+      "parameters": {"updates": ["message"], "additionalFields": {}},
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 300],
+      "webhookId": "facefinder-tg-trigger"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict"},
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.message.chat.id }}",
+              "rightValue": 904941272,
+              "operator": {"type": "number", "operation": "equals"}
+            }
+          ]
+        }
+      },
+      "name": "Chat autorisé ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "get",
+        "fileId": "={{ $json.message.photo.at(-1).file_id }}",
+        "download": true
+      },
+      "name": "Télécharger la photo",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [440, 300],
+      "credentials": {"telegramApi": {"id": "telegram-bot-token", "name": "Telegram Bot"}}
+    },
+    {
+      "parameters": {
+        "operation": "write",
+        "fileName": "C:\\Users\\DELL\\face-finder-data\\ref.jpg",
+        "dataPropertyName": "data",
+        "options": {}
+      },
+      "name": "Sauver photo référence",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8787/scan",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"ref\": \"C:\\\\Users\\\\DELL\\\\face-finder-data\\\\ref.jpg\", \"dir\": \"C:\\\\Users\\\\DELL\\\\face-finder-data\\\\scandrive\", \"threshold\": 0.45 }",
+        "options": {"timeout": 600000}
+      },
+      "name": "Scanner via FaceFinder API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "operation": "sendAndWait",
+        "chatId": "904941272",
+        "text": "={{ \"Scan terminé : \" + $json.count + \" photo(s) correspondante(s). Les envoyer ?\" }}",
+        "responseType": "approval",
+        "approvalType": "double",
+        "approveLabel": "✅ Envoyer",
+        "disapproveLabel": "❌ Ignorer",
+        "limitWaitTime": true,
+        "resumeAmount": 10,
+        "resumeUnit": "minutes",
+        "otherOptions": {}
+      },
+      "name": "Demander approbation",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1100, 300],
+      "credentials": {"telegramApi": {"id": "telegram-bot-token", "name": "Telegram Bot"}}
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "loose"},
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.data.approved }}",
+              "rightValue": true,
+              "operator": {"type": "boolean", "operation": "true", "singleValue": true}
+            }
+          ]
+        }
+      },
+      "name": "Approuvé ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1320, 300]
+    },
+    {
+      "parameters": {"fieldToSplitOut": "matches", "options": {}},
+      "name": "1 item par photo",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [1540, 200]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "fileSelector": "={{ $json.path }}",
+        "options": {}
+      },
+      "name": "Lire la photo",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [1760, 200]
+    },
+    {
+      "parameters": {
+        "operation": "sendPhoto",
+        "chatId": "904941272",
+        "binaryData": true,
+        "additionalFields": {"caption": "={{ $json.score }}"}
+      },
+      "name": "Envoyer la photo",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1980, 200],
+      "credentials": {"telegramApi": {"id": "telegram-bot-token", "name": "Telegram Bot"}}
+    },
+    {
+      "parameters": {
+        "operation": "sendMessage",
+        "chatId": "904941272",
+        "text": "Scan ignoré — rien n'a été envoyé.",
+        "otherOptions": {}
+      },
+      "name": "Refus notifié",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1540, 420],
+      "credentials": {"telegramApi": {"id": "telegram-bot-token", "name": "Telegram Bot"}}
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [[{"node": "Chat autorisé ?", "type": "main", "index": 0}]]
+    },
+    "Chat autorisé ?": {
+      "main": [
+        [{"node": "Télécharger la photo", "type": "main", "index": 0}],
+        []
+      ]
+    },
+    "Télécharger la photo": {
+      "main": [[{"node": "Sauver photo référence", "type": "main", "index": 0}]]
+    },
+    "Sauver photo référence": {
+      "main": [[{"node": "Scanner via FaceFinder API", "type": "main", "index": 0}]]
+    },
+    "Scanner via FaceFinder API": {
+      "main": [[{"node": "Demander approbation", "type": "main", "index": 0}]]
+    },
+    "Demander approbation": {
+      "main": [[{"node": "Approuvé ?", "type": "main", "index": 0}]]
+    },
+    "Approuvé ?": {
+      "main": [
+        [{"node": "1 item par photo", "type": "main", "index": 0}],
+        [{"node": "Refus notifié", "type": "main", "index": 0}]
+      ]
+    },
+    "1 item par photo": {
+      "main": [[{"node": "Lire la photo", "type": "main", "index": 0}]]
+    },
+    "Lire la photo": {
+      "main": [[{"node": "Envoyer la photo", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {"executionOrder": "v1"}
+}
