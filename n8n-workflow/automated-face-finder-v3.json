@@ -168,9 +168,6 @@
     "Sauver photo référence": {
       "main": [[{"node": "Sync Drive + Scanner", "type": "main", "index": 0}]]
     },
-    "Scanner via FaceFinder API": {
-      "main": [[{"node": "Demander approbation", "type": "main", "index": 0}]]
-    },
     "Sync Drive + Scanner": {
       "main": [[{"node": "Demander approbation", "type": "main", "index": 0}]]
     },
