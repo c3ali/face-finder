@@ -1,0 +1,102 @@
+{
+  "name": "Automated Face Finder — Telegram + Drive + FaceFinder.exe",
+  "nodes": [
+    {
+      "parameters": {"updates": ["message"], "limit": 1, "postType": "viaBot"},
+      "id": "1a2b3c4d-1111-1111-1111-111111111111",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [200, 300]
+    },
+    {
+      "parameters": {"fileType": "image", "propertyName": "photo_ref"},
+      "id": "2b3c4d5e-2222-2222-2222-222222222222",
+      "name": "Save ref photo",
+      "type": "n8n-nodes-base.moveBinaryData",
+      "typeVersion": 1,
+      "position": [450, 300]
+    },
+    {
+      "parameters": {"operation": "executeCommand", "command": "mkdir -p /tmp/telegram_refs /tmp/gdrive_copy /tmp/results /tmp/approved", "shell": true},
+      "id": "3c4d5e6f-3333-3333-3333-333333333333",
+      "name": "Init dirs",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [700, 300]
+    },
+    {
+      "parameters": {"command": "rclone sync gdrive:scandrive /tmp/gdrive_copy/ --fast-list", "shell": true},
+      "id": "4d5e6f70-4444-4444-4444-444444444444",
+      "name": "Sync Google Drive (rclone)",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [950, 300]
+    },
+    {
+      "parameters": {"command": "C:\\Users\\DELL\\face-finder\\dist\\FaceFinder.exe --ref /tmp/telegram_refs/ --dir /tmp/gdrive_copy/ --output /tmp/results/", "shell": false},
+      "id": "5e6f7081-5555-5555-5555-555555555555",
+      "name": "Run FaceFinder .exe",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [1200, 300]
+    },
+    {
+      "parameters": {"chatId": "904941272", "text": "Scan terminé. Résultats ci-dessous — validez chaque photo ?", "sendMessageAs": "bot"},
+      "id": "6f708190-6666-6666-6666-666666666666",
+      "name": "Send results + ask",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "credentials": {"telegramApi": {"id": "telegram-bot-token", "name": "TELEGRAM_BOT_TOKEN"}},
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {"waitFor": "message", "timeoutMs": 300000},
+      "id": "7a8b9c0d-7777-7777-7777-777777777777",
+      "name": "Wait for approval (5min)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1700, 300]
+    },
+    {
+      "parameters": {"conditions": {"options": {"caseSensitive": true, "leftValue": "={{ $json.approved }}", "type": "boolean", "operation": "equals", "rightValue": true}}},
+      "id": "8b9c0d1e-8888-8888-8888-888888888888",
+      "name": "Approved?",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 2,
+      "position": [1950, 300]
+    },
+    {
+      "parameters": {"chatId": "904941272", "mediaType": "file", "file": "/tmp/approved/approved_photo.jpg", "caption": "Photo approuvée (FaceFinder)"},
+      "id": "9c0d1e2f-9999-9999-9999-999999999999",
+      "name": "Send approved photo",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1,
+      "credentials": {"telegramApi": {"id": "telegram-bot-token", "name": "TELEGRAM_BOT_TOKEN"}},
+      "position": [2200, 300]
+    },
+    {
+      "parameters": {"operation": "executeCommand", "command": "echo 'Cleanup /tmp/telegram_refs /tmp/results /tmp/approved'", "shell": true},
+      "id": "a1b2c3d4-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      "name": "Cleanup tmp",
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [2450, 300]
+    }
+  ],
+  "connections": {
+    "1a2b3c4d-1111-1111-1111-111111111111": {"main": [{"node": "2b3c4d5e-2222-2222-2222-222222222222", "type": "main", "index": 0}]},
+    "2b3c4d5e-2222-2222-2222-222222222222": {"main": [{"node": "3c4d5e6f-3333-3333-3333-333333333333", "type": "main", "index": 0}]},
+    "3c4d5e6f-3333-3333-3333-333333333333": {"main": [{"node": "4d5e6f70-4444-4444-4444-444444444444", "type": "main", "index": 0}]},
+    "4d5e6f70-4444-4444-4444-444444444444": {"main": [{"node": "5e6f7081-5555-5555-5555-555555555555", "type": "main", "index": 0}]},
+    "5e6f7081-5555-5555-5555-555555555555": {"main": [{"node": "6f708190-6666-6666-6666-666666666666", "type": "main", "index": 0}]},
+    "6f708190-6666-6666-6666-666666666666": {"main": [{"node": "7a8b9c0d-7777-7777-7777-777777777777", "type": "main", "index": 0}]},
+    "7a8b9c0d-7777-7777-7777-777777777777": {"main": [{"node": "8b9c0d1e-8888-8888-8888-888888888888", "type": "main", "index": 0}]},
+    "8b9c0d1e-8888-8888-8888-888888888888": {"main": [{"node": "9c0d1e2f-9999-9999-9999-999999999999", "type": "main", "index": 0}, {"node": "a1b2c3d4-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "type": "main", "index": 1}]},
+    "9c0d1e2f-9999-9999-9999-999999999999": {"main": [{"node": "a1b2c3d4-aaaa-aaaa-aaaa-aaaaaaaaaaaa", "type": "main", "index": 0}]}
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": ["face-finder", "telegram", "automated"]
+}
