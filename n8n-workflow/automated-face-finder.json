@@ -1,0 +1,86 @@
+{
+  "name": "Automated Face Finder — Telegram + Google Drive + FaceFinder",
+  "nodes": [
+    {
+      "parameters": {"chatId": "904941272", "updateOptions": {}} ,
+      "id": "telegram-trigger",
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1,
+      "position": [250, 300]
+    },
+    {
+      "parameters": {"command": "mkdir -p /tmp/telegram_refs /tmp/gdrive_copy /tmp/results /tmp/approved"},
+      "id": "init-dirs",
+      "name": "Init dirs",
+      "type": "n8n-nodes-base.executeCommand",
+      "position": [450, 300]
+    },
+    {
+      "parameters": {"operation": "copy", "sourcePath": "/tmp/telegram_refs/", "destinationPath": "/tmp/telegram_refs/", "options": {}},
+      "id": "store-ref",
+      "name": "Store ref photo",
+      "type": "n8n-nodes-base.readBinaryFiles",
+      "position": [650, 300]
+    },
+    {
+      "parameters": {"command": "rclone sync gdrive:scandrive /tmp/gdrive_copy/ --fast-list --transfers 32"},
+      "id": "rclone-sync",
+      "name": "Sync Google Drive",
+      "type": "n8n-nodes-base.executeCommand",
+      "position": [850, 300]
+    },
+    {
+      "parameters": {
+        "command": "C:\\Users\\DELL\\face-finder\\dist\\FaceFinder.exe --ref /tmp/telegram_refs/ --dir /tmp/gdrive_copy/ --output /tmp/results/",
+        "timeout": 600
+      },
+      "id": "run-facefinder",
+      "name": "Run FaceFinder .exe",
+      "type": "n8n-nodes-base.executeCommand",
+      "position": [1050, 300]
+    },
+    {
+      "parameters": {"chatId": "904941272", "text": "Scan terminé. Photos matching : {{ $json.matches }}. Valider ?", "replyMarkup": "inline_keyboard"},
+      "id": "send-results",
+      "name": "Send results",
+      "type": "n8n-nodes-base.telegram",
+      "position": [1250, 300]
+    },
+    {
+      "parameters": {"waitFor": "message", "timeoutMs": 300000},
+      "id": "wait-validation",
+      "name": "Wait approval",
+      "type": "n8n-nodes-base.wait",
+      "position": [1450, 300]
+    },
+    {
+      "parameters": {"condition": "{{ $json.approved }}"},
+      "id": "filter-approved",
+      "name": "Filter approved",
+      "type": "n8n-nodes-base.switch",
+      "position": [1650, 300]
+    },
+    {
+      "parameters": {"files": "{{ $json.approvedPaths }}", "chatId": "904941272", "caption": "Photos approuvées (score >= seuil)"},
+      "id": "send-photos",
+      "name": "Send approved photos",
+      "type": "n8n-nodes-base.telegram",
+      "position": [1850, 300]
+    }
+  ],
+  "connections": {
+    "telegram-trigger": {"main": [[{"node": "init-dirs", "type": "main", "index": 0}]]},
+    "init-dirs": {"main": [[{"node": "store-ref", "type": "main", "index": 0}]]},
+    "store-ref": {"main": [[{"node": "rclone-sync", "type": "main", "index": 0}]]},
+    "rclone-sync": {"main": [[{"node": "run-facefinder", "type": "main", "index": 0}]]},
+    "run-facefinder": {"main": [[{"node": "send-results", "type": "main", "index": 0}]]},
+    "send-results": {"main": [[{"node": "wait-validation", "type": "main", "index": 0}]]},
+    "wait-validation": {"main": [[{"node": "filter-approved", "type": "main", "index": 0}]]},
+    "filter-approved": {"main": [[{"node": "send-photos", "type": "main", "index": 0}]]}
+  },
+  "credentials": {
+    "telegramBotToken": {"id": "telegram-bot-token", "name": "TELEGRAM_BOT_TOKEN"},
+    "telegramAllowedUser": {"id": "904941272", "name": "ALLOWED_USER"}
+  }
+}
