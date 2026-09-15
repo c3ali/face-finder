@@ -1,0 +1,91 @@
+{
+  "id": "faceFinderV4Out",
+  "name": "FaceFinder v4 — Envoi Telegram (webhook validation)",
+  "nodes": [
+    {
+      "parameters": {"httpMethod": "POST", "path": "facefinder-send", "responseMode": "responseNode", "options": {}},
+      "name": "Webhook validation",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 300],
+      "webhookId": "facefinder-send"
+    },
+    {
+      "parameters": {"fieldToSplitOut": "paths", "options": {}},
+      "name": "1 item par photo",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {"options": {}},
+      "name": "Aucune donnee",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [440, 420]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "fileSelector": "={{ $json.paths }}",
+        "options": {}
+      },
+      "name": "Lire la photo",
+      "type": "n8n-nodes-base.readWriteFile",
+      "typeVersion": 1,
+      "position": [440, 220]
+    },
+    {
+      "parameters": {
+        "operation": "sendPhoto",
+        "chatId": "904941272",
+        "binaryData": true,
+        "additionalFields": {}
+      },
+      "name": "Envoyer la photo",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [660, 220]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "destinationFieldName": "results",
+        "options": {}
+      },
+      "name": "Agreger",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [880, 220]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"sent\", \"count\": $json.results.length } }}",
+        "options": {}
+      },
+      "name": "Reponse a l API",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1100, 220]
+    }
+  ],
+  "connections": {
+    "Webhook validation": {
+      "main": [[{"node": "1 item par photo", "type": "main", "index": 0}]]
+    },
+    "1 item par photo": {
+      "main": [[{"node": "Lire la photo", "type": "main", "index": 0}]]
+    },
+    "Lire la photo": {
+      "main": [[{"node": "Envoyer la photo", "type": "main", "index": 0}]]
+    },
+    "Envoyer la photo": {
+      "main": [[{"node": "Agreger", "type": "main", "index": 0}]]
+    },
+    "Agreger": {
+      "main": [[{"node": "Reponse a l API", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {"executionOrder": "v1"}
+}

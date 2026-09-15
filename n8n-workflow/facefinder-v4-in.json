@@ -1,0 +1,103 @@
+{
+  "id": "faceFinderV4In",
+  "name": "FaceFinder v4 — Entree Telegram (vers file d'attente API)",
+  "nodes": [
+    {
+      "parameters": {"updates": ["message"], "additionalFields": {}},
+      "name": "Telegram Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 300],
+      "webhookId": "facefinder-v4-trigger"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "loose"},
+          "combinator": "and",
+          "conditions": [
+            {
+              "leftValue": "={{ $json.message.chat.id }}",
+              "rightValue": 904941272,
+              "operator": {"type": "number", "operation": "equals"}
+            }
+          ]
+        }
+      },
+      "name": "Chat autorise ?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [220, 300]
+    },
+    {
+      "parameters": {
+        "resource": "file",
+        "operation": "get",
+        "fileId": "={{ $json.message.photo.at(-1).file_id }}",
+        "download": true
+      },
+      "name": "Telecharger la photo",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [440, 300]
+    },
+    {
+      "parameters": {
+        "operation": "toJson",
+        "sourceProperty": "data",
+        "options": {"encoding": "base64", "fileName": "photo.jpg"}
+      },
+      "name": "Photo en base64",
+      "type": "n8n-nodes-base.convertToFile",
+      "typeVersion": 1.1,
+      "position": [660, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8787/requests",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"image_b64\": {{ JSON.stringify($json.data) }}, \"chat_id\": 904941272, \"source\": \"telegram\" }",
+        "options": {"timeout": 60000}
+      },
+      "name": "Mettre en file (API)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "operation": "sendMessage",
+        "chatId": "904941272",
+        "text": "=📸 Photo reçue. Demande {{ $json.id }} mise en file d'attente — ouvre le dashboard FaceFinder pour lancer l'analyse.",
+        "otherOptions": {}
+      },
+      "name": "Accuse de reception",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [1100, 300]
+    }
+  ],
+  "connections": {
+    "Telegram Trigger": {
+      "main": [[{"node": "Chat autorise ?", "type": "main", "index": 0}]]
+    },
+    "Chat autorise ?": {
+      "main": [
+        [{"node": "Telecharger la photo", "type": "main", "index": 0}],
+        []
+      ]
+    },
+    "Telecharger la photo": {
+      "main": [[{"node": "Photo en base64", "type": "main", "index": 0}]]
+    },
+    "Photo en base64": {
+      "main": [[{"node": "Mettre en file (API)", "type": "main", "index": 0}]]
+    },
+    "Mettre en file (API)": {
+      "main": [[{"node": "Accuse de reception", "type": "main", "index": 0}]]
+    }
+  },
+  "settings": {"executionOrder": "v1"}
+}
